@@ -5,9 +5,9 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.sql.*;
 
 public class PersonApp extends JFrame {
-
     private JTextField nameField;
     private JTextField emailField;
     private JComboBox<String> genderComboBox;
@@ -28,6 +28,9 @@ public class PersonApp extends JFrame {
         // Création du modèle de table et du JTable
         tableModel = new DefaultTableModel(new String[]{"Nom", "Email", "Genre"}, 0);
         personTable = new JTable(tableModel);
+
+        // Chargement des données de la base de données
+        loadDataFromDatabase();
 
         // Création des boutons
         JButton addButton = new JButton("Ajouter");
@@ -76,6 +79,7 @@ public class PersonApp extends JFrame {
                 String gender = (String) genderComboBox.getSelectedItem();
 
                 if (!name.isEmpty() && !email.isEmpty()) {
+                    addPersonToDatabase(name, email, gender);
                     tableModel.addRow(new Object[]{name, email, gender});
                     nameField.setText("");
                     emailField.setText("");
@@ -103,6 +107,39 @@ public class PersonApp extends JFrame {
                 }
             }
         });
+    }
+
+    private void loadDataFromDatabase() {
+        try (Connection connection = DatabaseConnection.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery("SELECT name, email, gender FROM persons")) {
+
+            while (resultSet.next()) {
+                String name = resultSet.getString("name");
+                String email = resultSet.getString("email");
+                String gender = resultSet.getString("gender");
+                tableModel.addRow(new Object[]{name, email, gender});
+            }
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Erreur de chargement des données : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void addPersonToDatabase(String name, String email, String gender) {
+        String query = "INSERT INTO persons (name, email, gender) VALUES (?, ?, ?)";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+            preparedStatement.setString(1, name);
+            preparedStatement.setString(2, email);
+            preparedStatement.setString(3, gender);
+            preparedStatement.executeUpdate();
+
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this, "Erreur d'ajout de personne : " + e.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private void showPersonDetails(String name, String email, String gender) {
